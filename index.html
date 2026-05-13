@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heat Stress Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    :root {
+      --bg:      #0d1117; --surface: #161b22; --border: #30363d;
+      --text:    #e6edf3; --muted:   #8b949e; --accent: #f0883e;
+      --red:     #f85149; --red-bg:    #3d0f0d;
+      --yellow:  #d29922; --yellow-bg: #3a2a05;
+      --green:   #3fb950; --green-bg:  #0d2a14;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:14px; min-height:100vh; }
+    body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px); background-size:40px 40px; opacity:.14; pointer-events:none; z-index:0; }
+    #root { position:relative; z-index:1; }
+
+    /* Animations */
+    @keyframes pulse-red    { 0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,.5)}  50%{box-shadow:0 0 0 16px rgba(248,81,73,0)} }
+    @keyframes pulse-yellow { 0%,100%{box-shadow:0 0 0 0 rgba(210,153,34,.5)} 50%{box-shadow:0 0 0 16px rgba(210,153,34,0)} }
+    @keyframes spin   { to{transform:rotate(360deg)} }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .pulse-red    { animation:pulse-red    2s infinite; }
+    .pulse-yellow { animation:pulse-yellow 2.5s infinite; }
+    .spinner { width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle; }
+    .fade-in { animation:fadeIn .35s ease both; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+    /* Table */
+    table{border-collapse:collapse;width:100%}
+    th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+    th{font-family:'Rajdhani',sans-serif;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--bg)}
+    tbody tr:hover{background:rgba(255,255,255,.025)}
+
+    /* Inputs */
+    input,textarea,select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 12px;font-family:'Inter',sans-serif;font-size:14px;width:100%;outline:none;transition:border-color .2s}
+    input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+    textarea{resize:vertical;min-height:86px}
+    select option{background:var(--surface)}
+
+    /* Buttons */
+    .btn{font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:none;border-radius:6px;padding:9px 20px;cursor:pointer;transition:opacity .15s,transform .1s;font-size:13px}
+    .btn:active{transform:scale(.97)} .btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn-primary{background:linear-gradient(135deg,#f0883e,#e05a1e);color:#fff}
+    .btn-green  {background:linear-gradient(135deg,#2ea043,#1a7431);color:#fff}
+    .btn-ghost  {background:transparent;border:1px solid var(--border);color:var(--muted)}
+    .btn-ghost:hover{border-color:var(--text);color:var(--text)}
+    .btn-danger {background:transparent;border:1px solid var(--red);color:var(--red);padding:6px 12px;font-size:11px}
+    .btn-danger:hover{background:var(--red-bg)}
+
+    /* Card */
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .card-header{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
+    .card-title{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;letter-spacing:.06em;text-transform:uppercase}
+    .card-body{padding:18px}
+
+    /* Badges */
+    .badge{display:inline-block;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:4px}
+    .badge-Red   {background:var(--red-bg);   color:var(--red)}
+    .badge-Yellow{background:var(--yellow-bg);color:var(--yellow)}
+    .badge-Green {background:var(--green-bg); color:var(--green)}
+
+    /* Site pill */
+    .site-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(240,136,62,.12);border:1px solid rgba(240,136,62,.3);border-radius:99px;padding:4px 12px;font-size:12px;color:var(--accent);font-weight:600;cursor:pointer;transition:background .15s}
+    .site-pill:hover{background:rgba(240,136,62,.2)}
+    .site-pill.active{background:rgba(240,136,62,.25);border-color:var(--accent)}
+
+    /* Error box */
+    .err-box{padding:13px 15px;border-radius:8px;background:var(--red-bg);border:1px solid var(--red);color:var(--red);font-size:13px}
+    .err-box pre{margin:5px 0 0;white-space:pre-wrap;font-size:11px;opacity:.85;overflow-x:auto}
+
+    /* Label */
+    .lbl{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:5px}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+  const { useState, useEffect, useCallback, useRef } = React;
+
+  /* =============================================================
+   * AUTO BASE URL — works with any folder name / ngrok / port
+   * ============================================================= */
+  const BASE_URL = window.location.href.replace(/\/[^/]*$/, '');
+  const API = {
+    sites:     BASE_URL + '/backend/sites.php',
+    workers:   BASE_URL + '/backend/workers.php',
+    weather:   BASE_URL + '/backend/weather.php',
+    sendAlert: BASE_URL + '/backend/send_telegram_alert.php',
+  };
+  const REFRESH_MS = 5 * 60 * 1000;
+
+  /* ── helpers ─────────────────────────────────────────────── */
+  const RC = {
+    Red:    { bg:'#3d0f0d', border:'#f85149', text:'#f85149', emoji:'🔴' },
+    Yellow: { bg:'#3a2a05', border:'#d29922', text:'#d29922', emoji:'🟡' },
+    Green:  { bg:'#0d2a14', border:'#3fb950', text:'#3fb950', emoji:'🟢' },
+  };
+  const rc   = r => RC[r] || RC.Green;
+  const fmtT = iso => iso ? new Date(iso).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '–';
+  const fmtD = iso => iso ? new Date(iso).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Never';
+  const ago  = iso => {
+    if (!iso) return null;
+    const d = Math.floor((Date.now()-new Date(iso))/60000);
+    if (d<1) return 'just now';
+    if (d<60) return d+'m ago';
+    return Math.floor(d/60)+'h '+(d%60)+'m ago';
+  };
+
+  /* =============================================================
+   * safeFetch — never crashes on HTML responses
+   * ============================================================= */
+  async function safeFetch(url, opts) {
+    let res, text;
+    try { res = await fetch(url, opts||{}); text = await res.text(); }
+    catch(e) { return { error:'Network error: '+e.message }; }
+    try { return { data:JSON.parse(text), status:res.status }; }
+    catch(_) {
+      const hint = text.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,300);
+      return { error:`HTTP ${res.status} — server returned HTML.\nHint: ${hint}`, status:res.status };
+    }
+  }
+
+  /* ── shared UI atoms ─────────────────────────────────────── */
+  function ErrBox({ msg }) {
+    return <div className="err-box fade-in"><strong>⚠️ Error</strong><pre>{msg}</pre></div>;
+  }
+  function Spinner() { return <span className="spinner" />; }
+
+  /* =============================================================
+   * SiteSelector — top-of-page dropdown + "New site" button
+   * ============================================================= */
+  function SiteSelector({ sites, selectedId, onSelect, onNewSite, loading }) {
+    return (
+      <div style={{ display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap' }}>
+        <span style={{ fontFamily:'Rajdhani,sans-serif', fontWeight:700, fontSize:'13px', letterSpacing:'.08em', textTransform:'uppercase', color:'var(--muted)', whiteSpace:'nowrap' }}>
+          📍 Active Site
+        </span>
+
+        {loading
+          ? <Spinner />
+          : (
+            <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' }}>
+              {sites.map(s => (
+                <button
+                  key={s.id}
+                  className={'site-pill' + (s.id === selectedId ? ' active' : '')}
+                  onClick={() => onSelect(s)}
+                >
+                  {s.id === selectedId ? '✅ ' : ''}{s.name}
+                  <span style={{ opacity:.6, fontSize:'11px' }}>({s.worker_count})</span>
+                </button>
+              ))}
+              <button className="btn btn-green" style={{ fontSize:'12px', padding:'5px 14px' }} onClick={onNewSite}>
+                ＋ New Site
+              </button>
+            </div>
+          )
+        }
+      </div>
+    );
+  }
+
+  /* =============================================================
+   * NewSiteModal
+   * ============================================================= */
+  function NewSiteModal({ onClose, onCreated }) {
+    const [name, setName]   = useState('');
+    const [lat,  setLat]    = useState('');
+    const [lng,  setLng]    = useState('');
+    const [busy, setBusy]   = useState(false);
+    const [err,  setErr]    = useState('');
+
+    // Quick-fill helpers with real landmark coordinates
+    const presets = [
+      { label:'🇲🇦 Casablanca',  lat:33.5731, lng:-7.5898 },
+      { label:'🇫🇷 Paris',        lat:48.8566, lng:2.3522  },
+      { label:'🇪🇬 Cairo',        lat:30.0444, lng:31.2357 },
+      { label:'🇦🇪 Dubai',        lat:25.2048, lng:55.2708 },
+      { label:'🇮🇳 Mumbai',       lat:19.0760, lng:72.8777 },
+    ];
+
+    const submit = async () => {
+      if (!name.trim()) { setErr('Name is required.'); return; }
+      const la = parseFloat(lat), lo = parseFloat(lng);
+      if (isNaN(la)||isNaN(lo)) { setErr('Enter valid decimal coordinates.'); return; }
+      setBusy(true); setErr('');
+      const { data, error } = await safeFetch(API.sites, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ name: name.trim(), latitude: la, longitude: lo }),
+      });
+      setBusy(false);
+      if (error)      { setErr(error); return; }
+      if (data.error) { setErr(data.error); return; }
+      onCreated(data.id, name.trim(), la, lo);
+    };
+
+    return (
+      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}
+           onClick={e => { if(e.target===e.currentTarget) onClose(); }}>
+        <div className="card fade-in" style={{ width:'100%', maxWidth:'480px', margin:'20px' }}>
+          <div className="card-header" style={{ justifyContent:'space-between' }}>
+            <span className="card-title">🏗 Create New Site</span>
+            <button className="btn btn-ghost" style={{ padding:'4px 10px' }} onClick={onClose}>✕</button>
+          </div>
+          <div className="card-body" style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+
+            {/* Quick presets */}
+            <div>
+              <span className="lbl">Quick-fill with a city</span>
+              <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
+                {presets.map(p => (
+                  <button key={p.label} className="btn btn-ghost" style={{ fontSize:'11px', padding:'4px 10px' }}
+                    onClick={() => { setLat(String(p.lat)); setLng(String(p.lng)); }}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="lbl">Site Name *</label>
+              <input placeholder="e.g. North Factory" value={name} onChange={e=>setName(e.target.value)} />
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+              <div>
+                <label className="lbl">Latitude</label>
+                <input placeholder="e.g. 33.5731" value={lat} onChange={e=>setLat(e.target.value)} />
+              </div>
+              <div>
+                <label className="lbl">Longitude</label>
+                <input placeholder="e.g. -7.5898" value={lng} onChange={e=>setLng(e.target.value)} />
+              </div>
+            </div>
+
+            <div style={{ fontSize:'12px', color:'var(--muted)', background:'rgba(255,255,255,.04)', padding:'10px 12px', borderRadius:'6px' }}>
+              💡 <strong>How to find coordinates:</strong> Open Google Maps → right-click your site → the first line shows <em>lat, lng</em>.
+            </div>
+
+            {err && <ErrBox msg={err} />}
+
+            <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end' }}>
+              <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+              <button className="btn btn-green" onClick={submit} disabled={busy}>
+                {busy ? '⏳ Creating…' : '✅ Create Site'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* =============================================================
+   * RiskBanner
+   * ============================================================= */
+  function RiskBanner({ weather, loading, error }) {
+    if (loading) return (
+      <div className="card fade-in" style={{ padding:'28px', textAlign:'center' }}>
+        <Spinner /> <span style={{ color:'var(--muted)', marginLeft:'10px' }}>Loading weather…</span>
+      </div>
+    );
+    if (error) return <ErrBox msg={error} />;
+    if (!weather) return null;
+
+    const { current, location } = weather;
+    const risk  = current?.risk || 'Green';
+    const c     = rc(risk);
+    const pulse = risk==='Red' ? 'pulse-red' : risk==='Yellow' ? 'pulse-yellow' : '';
+
+    return (
+      <div className={'card fade-in '+pulse} style={{ background:c.bg, border:'1px solid '+c.border }}>
+        <div style={{ padding:'24px 28px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'16px' }}>
+          <div>
+            <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'6px' }}>
+              <span style={{ fontSize:'38px', lineHeight:1 }}>{c.emoji}</span>
+              <div>
+                <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:'12px', letterSpacing:'.12em', textTransform:'uppercase', color:c.text, opacity:.75 }}>Current Heat Risk</div>
+                <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:'42px', fontWeight:700, lineHeight:1, color:c.text }}>{risk} Level</div>
+              </div>
+            </div>
+            <div style={{ color:'var(--muted)', fontSize:'12px' }}>📍 {location} &nbsp;·&nbsp; {fmtT(current?.time)}</div>
+          </div>
+
+          <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
+            {[
+              { label:'Air Temp',   value:(current?.temperature??'–')+'°C',         icon:'🌡️' },
+              { label:'Feels Like', value:(current?.apparent_temperature??'–')+'°C', icon:'🥵' },
+              { label:'Humidity',   value:(current?.humidity??'–')+'%',              icon:'💧' },
+            ].map(s => (
+              <div key={s.label} style={{ background:'rgba(0,0,0,.25)', border:'1px solid '+c.border+'44', borderRadius:'8px', padding:'10px 16px', textAlign:'center', minWidth:'84px' }}>
+                <div style={{ fontSize:'20px' }}>{s.icon}</div>
+                <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:'20px', fontWeight:700, color:c.text }}>{s.value}</div>
+                <div style={{ fontSize:'10px', letterSpacing:'.08em', textTransform:'uppercase', color:'var(--muted)' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* =============================================================
+   * HourlyTable
+   * ============================================================= */
+  function HourlyTable({ weather }) {
+    if (!weather?.hourly?.length) return null;
+    return (
+      <div className="card fade-in">
+        <div className="card-header"><span>⏱</span><span className="card-title">12-Hour Forecast</span></div>
+        <div style={{ overflowX:'auto' }}>
+          <table>
+            <thead><tr><th>Time</th><th>Air Temp</th><th>Feels Like</th><th>Humidity</th><th>Risk</th></tr></thead>
+            <tbody>
+              {weather.hourly.slice(0,12).map((h,i) => {
+                const c = rc(h.risk);
+                return (
+                  <tr key={i}>
+                    <td style={{ fontWeight:500 }}>{fmtT(h.time)}</td>
+                    <td>{h.temperature}°C</td>
+                    <td style={{ fontWeight:600, color:c.text }}>{h.apparent_temperature}°C</td>
+                    <td>{h.humidity}%</td>
+                    <td><span className={'badge badge-'+h.risk}>{h.risk}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  /* =============================================================
+   * WorkersTable
+   * ============================================================= */
+  function WorkersTable({ workers, loading, error, siteName, onDelete }) {
+    if (error) return <ErrBox msg={error} />;
+    return (
+      <div className="card fade-in">
+        <div className="card-header" style={{ justifyContent:'space-between' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'9px' }}>
+            <span>👷</span>
+            <span className="card-title">Workers – {siteName}</span>
+            <span style={{ background:'rgba(255,255,255,.06)', borderRadius:'99px', padding:'2px 9px', fontSize:'12px', color:'var(--muted)' }}>{workers.length}</span>
+          </div>
+          {loading && <Spinner />}
+        </div>
+
+        {workers.length === 0 && !loading ? (
+          <div style={{ padding:'36px', textAlign:'center', color:'var(--muted)' }}>
+            No workers in this site yet. Add one below.
+          </div>
+        ) : (
+          <div style={{ overflowX:'auto' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th><th>Name</th><th>Phone</th>
+                  <th>Telegram Chat ID</th><th>Last Check-in</th><th>Status</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {workers.map((w, i) => {
+                  const a  = ago(w.last_checkin);
+                  const ok = w.last_checkin && (Date.now()-new Date(w.last_checkin))<3600000;
+                  return (
+                    <tr key={w.id}>
+                      <td style={{ color:'var(--muted)', width:'36px' }}>{i+1}</td>
+                      <td style={{ fontWeight:600 }}>{w.name}</td>
+                      <td style={{ color:'var(--muted)' }}>{w.phone||'–'}</td>
+                      <td>
+                        {w.telegram_chat_id
+                          ? <code style={{ fontSize:'12px', background:'rgba(255,255,255,.05)', padding:'2px 6px', borderRadius:'4px' }}>{w.telegram_chat_id}</code>
+                          : <span style={{ color:'var(--muted)' }}>–</span>}
+                      </td>
+                      <td style={{ color:'var(--muted)', fontSize:'12px' }}>{fmtD(w.last_checkin)}</td>
+                      <td>
+                        {w.last_checkin
+                          ? <span style={{ color:ok?'var(--green)':'var(--yellow)', fontSize:'12px', fontWeight:600 }}>{ok?'✅':'⏳'} {a}</span>
+                          : <span style={{ color:'var(--muted)', fontSize:'12px' }}>No check-in</span>}
+                      </td>
+                      <td><button className="btn btn-danger" onClick={()=>onDelete(w.id,w.name)}>✕ Remove</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* =============================================================
+   * AddWorkerForm
+   * ============================================================= */
+  function AddWorkerForm({ sites, defaultSiteId, onAdded }) {
+    const [name,   setName]   = useState('');
+    const [phone,  setPhone]  = useState('');
+    const [chatId, setChatId] = useState('');
+    const [siteId, setSiteId] = useState(String(defaultSiteId || 1));
+    const [busy,   setBusy]   = useState(false);
+    const [msg,    setMsg]    = useState(null);
+
+    // Keep siteId in sync when the selected site changes externally
+    useEffect(() => { setSiteId(String(defaultSiteId || 1)); }, [defaultSiteId]);
+
+    const submit = async () => {
+      if (!name.trim()) { setMsg({ type:'error', text:'Name is required.' }); return; }
+      setBusy(true); setMsg(null);
+      const { data, error } = await safeFetch(API.workers, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ name:name.trim(), phone:phone.trim(), telegram_chat_id:chatId.trim(), site_id:parseInt(siteId,10) }),
+      });
+      setBusy(false);
+      if (error)      { setMsg({ type:'error', text:error });      return; }
+      if (data.error) { setMsg({ type:'error', text:data.error }); return; }
+      setMsg({ type:'success', text:data.message||'Worker added!' });
+      setName(''); setPhone(''); setChatId('');
+      onAdded();
+    };
+
+    return (
+      <div className="card fade-in">
+        <div className="card-header"><span>➕</span><span className="card-title">Add Worker</span></div>
+        <div className="card-body">
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:'12px', marginBottom:'14px' }}>
+            <div>
+              <label className="lbl">Name *</label>
+              <input placeholder="e.g. Youssef Benali" value={name} onChange={e=>setName(e.target.value)} />
+            </div>
+            <div>
+              <label className="lbl">Phone</label>
+              <input placeholder="e.g. +212 6 00 00 00 00" value={phone} onChange={e=>setPhone(e.target.value)} />
+            </div>
+            <div>
+              <label className="lbl">Telegram Chat ID</label>
+              <input placeholder="e.g. 123456789" value={chatId} onChange={e=>setChatId(e.target.value)} />
+              <div style={{ fontSize:'11px', color:'var(--muted)', marginTop:'4px' }}>Worker sends /start to your bot to get this.</div>
+            </div>
+            <div>
+              <label className="lbl">Assign to Site</label>
+              <select value={siteId} onChange={e=>setSiteId(e.target.value)}>
+                {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' }}>
+            <button className="btn btn-primary" onClick={submit} disabled={busy}>
+              {busy ? '⏳ Adding…' : 'Add Worker'}
+            </button>
+            {msg && <span style={{ fontSize:'13px', color:msg.type==='success'?'var(--green)':'var(--red)' }}>{msg.type==='success'?'✅':'❌'} {msg.text}</span>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* =============================================================
+   * AlertPanel
+   * ============================================================= */
+  function AlertPanel({ site }) {
+    const emoji  = rc(site?.currentRisk||'Green').emoji;
+    const defMsg = emoji+' HEAT STRESS ALERT – '+(site?.currentRisk||'?')+' Level\n'
+                 + 'Site: '+(site?.name||'')+'\n'
+                 + 'Time: '+new Date().toLocaleString()+'\n\n'
+                 + '⚠️ Take immediate precautions:\n'
+                 + '• Drink water every 15–20 min\n'
+                 + '• Seek shade / air-conditioned areas\n'
+                 + '• Watch for heat exhaustion symptoms\n\n'
+                 + 'Reply OK to confirm you are safe.';
+
+    const [msg,    setMsg]    = useState('');
+    const [busy,   setBusy]   = useState(false);
+    const [result, setResult] = useState(null);
+
+    const send = async () => {
+      if (!site) return;
+      setBusy(true); setResult(null);
+      const { data, error } = await safeFetch(API.sendAlert, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          site_id:   site.id,
+          site_name: site.name,
+          lat:       site.latitude,
+          lng:       site.longitude,
+          message:   msg.trim(),
+        }),
+      });
+      setBusy(false);
+      if (error) { setResult({ error }); return; }
+      setResult(data);
+    };
+
+    return (
+      <div className="card fade-in" style={{ border:'1px solid rgba(240,136,62,.3)' }}>
+        <div className="card-header" style={{ background:'rgba(240,136,62,.06)' }}>
+          <span>📣</span>
+          <span className="card-title">Send Alert – {site?.name || '…'}</span>
+        </div>
+        <div className="card-body">
+          {!site ? (
+            <div style={{ color:'var(--muted)' }}>Select a site first to send alerts.</div>
+          ) : (
+            <>
+              <label className="lbl">Custom message (leave blank for default)</label>
+              <textarea placeholder={defMsg} value={msg} onChange={e=>setMsg(e.target.value)} style={{ marginBottom:'14px' }} />
+              <button className="btn btn-primary" style={{ fontSize:'14px', padding:'11px 24px' }} onClick={send} disabled={busy}>
+                {busy ? '⏳ Sending…' : '📤 Send Alert to All Workers in '+site.name}
+              </button>
+
+              {result && !result.error && (
+                <div style={{ marginTop:'14px', padding:'14px', borderRadius:'8px', background:'var(--green-bg)', border:'1px solid var(--green)', fontSize:'13px' }}>
+                  <div style={{ color:'var(--green)', fontWeight:700, marginBottom:'8px' }}>✅ Alert sent!</div>
+                  <div style={{ color:'var(--muted)', lineHeight:1.9 }}>
+                    📨 Sent: <strong style={{ color:'var(--text)' }}>{result.sent}</strong> &nbsp;|&nbsp;
+                    ⏭ Skipped: <strong style={{ color:'var(--text)' }}>{result.skipped}</strong> &nbsp;|&nbsp;
+                    👥 Total: <strong style={{ color:'var(--text)' }}>{result.total}</strong> &nbsp;|&nbsp;
+                    Risk: <span className={'badge badge-'+result.risk_level}>{result.risk_level}</span>
+                  </div>
+                  {result.errors?.length>0 && (
+                    <div style={{ marginTop:'8px', color:'var(--red)' }}>
+                      ⚠️ Errors:
+                      <ul style={{ margin:'4px 0 0 14px' }}>{result.errors.map((e,i)=><li key={i}>{e}</li>)}</ul>
+                    </div>
+                  )}
+                </div>
+              )}
+              {result?.error && <div style={{ marginTop:'14px' }}><ErrBox msg={result.error} /></div>}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* =============================================================
+   * ROOT APP
+   * ============================================================= */
+  function App() {
+    const [sites,       setSites]       = useState([]);
+    const [sitesLoad,   setSitesLoad]   = useState(true);
+    const [sitesErr,    setSitesErr]    = useState(null);
+    const [selectedSite, setSelectedSite] = useState(null);  // full site object
+    const [showNewSite, setShowNewSite] = useState(false);
+
+    const [weather,     setWeather]     = useState(null);
+    const [weatherErr,  setWeatherErr]  = useState(null);
+    const [weatherLoad, setWeatherLoad] = useState(false);
+
+    const [workers,     setWorkers]     = useState([]);
+    const [workersErr,  setWorkersErr]  = useState(null);
+    const [workersLoad, setWorkersLoad] = useState(false);
+
+    const [refreshing,  setRefreshing]  = useState(false);
+    const [lastRefresh, setLastRefresh] = useState(null);
+    const timerRef = useRef(null);
+
+    /* ── fetch sites list ────────────────────────────────── */
+    const fetchSites = useCallback(async (autoSelectId) => {
+      setSitesLoad(true); setSitesErr(null);
+      const { data, error } = await safeFetch(API.sites);
+      setSitesLoad(false);
+      if (error)           { setSitesErr(error); return; }
+      if (data.error)      { setSitesErr(data.error); return; }
+      if (!Array.isArray(data)) { setSitesErr('Unexpected sites response.'); return; }
+      setSites(data);
+      if (data.length > 0) {
+        // Auto-select: prefer the id passed (e.g. newly created), else keep current, else pick first
+        const target = autoSelectId
+          ? data.find(s => s.id === autoSelectId)
+          : (selectedSite ? data.find(s => s.id === selectedSite.id) : null);
+        setSelectedSite(target || data[0]);
+      }
+    }, [selectedSite]);
+
+    /* ── fetch weather for selected site ────────────────── */
+    const fetchWeather = useCallback(async (site) => {
+      if (!site) return;
+      setWeatherLoad(true); setWeatherErr(null);
+      const url = API.weather + `?lat=${site.latitude}&lng=${site.longitude}&label=${encodeURIComponent(site.name)}`;
+      const { data, error } = await safeFetch(url);
+      setWeatherLoad(false);
+      if (error)       { setWeatherErr(error); return; }
+      if (data.error)  { setWeatherErr(data.error+(data.detail?'\n'+data.detail:'')); return; }
+      setWeather(data);
+    }, []);
+
+    /* ── fetch workers for selected site ─────────────────── */
+    const fetchWorkers = useCallback(async (site) => {
+      if (!site) return;
+      setWorkersLoad(true); setWorkersErr(null);
+      const { data, error } = await safeFetch(API.workers + `?site_id=${site.id}`);
+      setWorkersLoad(false);
+      if (error)             { setWorkersErr(error); return; }
+      if (data.error)        { setWorkersErr(data.error); return; }
+      if (Array.isArray(data)) setWorkers(data);
+    }, []);
+
+    /* ── full refresh ────────────────────────────────────── */
+    const refreshAll = useCallback(async () => {
+      setRefreshing(true);
+      await Promise.all([
+        fetchWeather(selectedSite),
+        fetchWorkers(selectedSite),
+        fetchSites(selectedSite?.id),
+      ]);
+      setLastRefresh(new Date().toISOString());
+      setRefreshing(false);
+    }, [selectedSite, fetchWeather, fetchWorkers, fetchSites]);
+
+    /* ── initial load ────────────────────────────────────── */
+    useEffect(() => { fetchSites(); }, []);
+
+    /* ── re-fetch weather + workers when site changes ───── */
+    useEffect(() => {
+      if (!selectedSite) return;
+      setWeather(null); setWorkers([]);
+      fetchWeather(selectedSite);
+      fetchWorkers(selectedSite);
+    }, [selectedSite?.id]);
+
+    /* ── auto-refresh timer ──────────────────────────────── */
+    useEffect(() => {
+      clearInterval(timerRef.current);
+      timerRef.current = setInterval(refreshAll, REFRESH_MS);
+      return () => clearInterval(timerRef.current);
+    }, [refreshAll]);
+
+    /* ── delete worker ───────────────────────────────────── */
+    const deleteWorker = async (id, name) => {
+      if (!window.confirm(`Remove worker "${name}"?`)) return;
+      const { error } = await safeFetch(API.workers+'?id='+id, { method:'DELETE' });
+      if (error) alert('Delete failed:\n'+error);
+      else fetchWorkers(selectedSite);
+    };
+
+    /* ── delete site ─────────────────────────────────────── */
+    const deleteSite = async () => {
+      if (!selectedSite) return;
+      if (selectedSite.id === 1) { alert('Cannot delete the Default Site.'); return; }
+      if (!window.confirm(`Delete site "${selectedSite.name}"? All workers must be moved first.`)) return;
+      const { data, error } = await safeFetch(API.sites+'?id='+selectedSite.id, { method:'DELETE' });
+      if (error || data?.error) { alert((error||data.error)); return; }
+      setSelectedSite(null);
+      fetchSites();
+    };
+
+    /* ── new site created callback ───────────────────────── */
+    const handleSiteCreated = async (newId, newName, newLat, newLng) => {
+      setShowNewSite(false);
+      await fetchSites(newId);
+    };
+
+    /* ── augment selectedSite with current risk for AlertPanel ── */
+    const siteWithRisk = selectedSite ? {
+      ...selectedSite,
+      currentRisk: weather?.current?.risk || null,
+    } : null;
+
+    return (
+      <div style={{ minHeight:'100vh' }}>
+        {/* ── Fixed header ── */}
+        <header style={{ borderBottom:'1px solid var(--border)', background:'var(--surface)', padding:'0 22px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'58px', position:'sticky', top:0, zIndex:50 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+            <span style={{ fontSize:'24px' }}>🌡️</span>
+            <div>
+              <div style={{ fontFamily:'Rajdhani,sans-serif', fontSize:'19px', fontWeight:700, letterSpacing:'.06em', textTransform:'uppercase', lineHeight:1 }}>Heat Stress Manager</div>
+              <div style={{ fontSize:'10px', color:'var(--muted)', letterSpacing:'.1em', textTransform:'uppercase' }}>WeatherWise Hack 2026</div>
+            </div>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+            {lastRefresh && <span style={{ fontSize:'11px', color:'var(--muted)' }}>⟳ {fmtT(lastRefresh)}</span>}
+            <button className="btn btn-ghost" onClick={refreshAll} disabled={refreshing}>
+              {refreshing ? <><Spinner /> &nbsp;Refreshing</> : '⟳ Refresh'}
+            </button>
+          </div>
+        </header>
+
+        <main style={{ maxWidth:'1260px', margin:'0 auto', padding:'22px 18px', display:'flex', flexDirection:'column', gap:'18px' }}>
+
+          {/* ── Sites bar ── */}
+          <div className="card fade-in">
+            <div className="card-body" style={{ paddingTop:'14px', paddingBottom:'14px' }}>
+              {sitesErr ? <ErrBox msg={sitesErr} /> : (
+                <SiteSelector
+                  sites={sites}
+                  selectedId={selectedSite?.id}
+                  onSelect={setSelectedSite}
+                  onNewSite={() => setShowNewSite(true)}
+                  loading={sitesLoad}
+                />
+              )}
+            </div>
+
+            {/* Site meta row (delete button, coords) */}
+            {selectedSite && (
+              <div style={{ padding:'8px 18px 12px', borderTop:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'8px' }}>
+                <span style={{ fontSize:'12px', color:'var(--muted)' }}>
+                  🗺 {selectedSite.latitude.toFixed(4)}, {selectedSite.longitude.toFixed(4)}
+                  &nbsp;·&nbsp; {selectedSite.worker_count} worker{selectedSite.worker_count!==1?'s':''}
+                </span>
+                {selectedSite.id !== 1 && (
+                  <button className="btn btn-danger" onClick={deleteSite}>🗑 Delete this Site</button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Risk banner + hourly side-by-side on wide screens ── */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'18px' }}>
+            <RiskBanner weather={weather} loading={weatherLoad} error={weatherErr} />
+            <HourlyTable weather={weather} />
+          </div>
+
+          {/* ── Alert panel ── */}
+          <AlertPanel site={siteWithRisk} />
+
+          {/* ── Workers table ── */}
+          <WorkersTable
+            workers={workers}
+            loading={workersLoad}
+            error={workersErr}
+            siteName={selectedSite?.name || '…'}
+            onDelete={deleteWorker}
+          />
+
+          {/* ── Add worker form ── */}
+          <AddWorkerForm
+            sites={sites}
+            defaultSiteId={selectedSite?.id}
+            onAdded={() => { fetchWorkers(selectedSite); fetchSites(selectedSite?.id); }}
+          />
+
+          {/* ── Debug accordion ── */}
+          <details style={{ fontSize:'11px', color:'var(--muted)', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'8px', padding:'10px 14px' }}>
+            <summary style={{ cursor:'pointer', fontFamily:'Rajdhani,sans-serif', letterSpacing:'.06em', textTransform:'uppercase' }}>
+              ⚙ Detected API endpoints
+            </summary>
+            <div style={{ marginTop:'8px', lineHeight:2, fontFamily:'monospace', fontSize:'12px' }}>
+              {Object.entries(API).map(([k,v]) => <div key={k}>{k}: <strong style={{ color:'var(--text)' }}>{v}</strong></div>)}
+            </div>
+          </details>
+
+          <footer style={{ textAlign:'center', color:'var(--muted)', fontSize:'12px', padding:'10px 0', letterSpacing:'.04em' }}>
+            Heat Stress Manager · WeatherWise Hack 2026 · Weather from{' '}
+            <a href="https://open-meteo.com" target="_blank" rel="noreferrer" style={{ color:'var(--accent)', textDecoration:'none' }}>Open-Meteo</a>
+            {' '}(free, no API key required)
+          </footer>
+        </main>
+
+        {/* ── New Site Modal ── */}
+        {showNewSite && (
+          <NewSiteModal onClose={() => setShowNewSite(false)} onCreated={handleSiteCreated} />
+        )}
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

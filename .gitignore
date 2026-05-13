@@ -1,0 +1,26 @@
+
+# ── Sensitive config (NEVER commit this) ────────────────────
+backend/config.php
+
+# ── Local database exports ───────────────────────────────────
+*.sql.bak
+*.dump
+
+# ── Diagnostic / debug tools ────────────────────────────────
+diagnostic.php
+backend/diagnostic.php
+
+# ── OS junk ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor folders ───────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ── PHP error logs ───────────────────────────────────────────
+*.log
+error_log
